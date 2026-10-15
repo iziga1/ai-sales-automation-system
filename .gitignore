@@ -1,0 +1,22 @@
+
+# Environment variables and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+
+# Dependencies
+node_modules/
+
+# Local files
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Logs
+*.log
+
+# Private data
+data/private/
