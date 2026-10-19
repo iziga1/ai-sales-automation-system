@@ -1,0 +1,266 @@
+{
+  "name": "01 - Lead Validation",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "69671689-ca22-444f-bfe6-0dcdf6c1a9c8",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_SPREADSHEET_ID",
+          "mode": "id",
+          "cachedResultName": "AI Sales Automation - Leads"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Leads",
+          "mode": "name",
+          "cachedResultName": "Leads"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        0
+      ],
+      "id": "d618e2fa-38a4-410e-b079-04eeb3884b08",
+      "name": "Get row(s) in sheet"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst items = $input.all();\n\nconst requiredFields = [\n  \"company_name\",\n  \"contact_name\",\n  \"email\",\n  \"country\",\n];\n\nconst emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\n\nfunction normalizeText(value) {\n  return String(value ?? \"\").trim();\n}\n\nfunction normalizeEmail(value) {\n  return normalizeText(value).toLowerCase();\n}\n\nconst seenEmails = new Map();\nconst seenIds = new Set();\n\nconst results = items.map((item) => {\n  const original = item.json;\n\n  const lead = {\n    ...original,\n    lead_id: normalizeText(original.lead_id),\n    company_name: normalizeText(original.company_name),\n    contact_name: normalizeText(original.contact_name),\n    email: normalizeEmail(original.email),\n    phone: normalizeText(original.phone),\n    country: normalizeText(original.country),\n    industry: normalizeText(original.industry),\n    status: normalizeText(original.status),\n  };\n\n  const errors = [];\n\n  if (!lead.lead_id) {\n    errors.push(\"Missing lead_id\");\n  }\n\n  for (const field of requiredFields) {\n    if (!lead[field]) {\n      errors.push(`Missing required field: ${field}`);\n    }\n  }\n\n  if (lead.email && !emailRegex.test(lead.email)) {\n    errors.push(\"Invalid email format\");\n  }\n\n  if (seenIds.has(lead.lead_id)) {\n    errors.push(\"Duplicate lead_id\");\n  }\n\n  if (lead.lead_id) {\n    seenIds.add(lead.lead_id);\n  }\n\n  let validationResult = \"valid\";\n  let duplicateOf = \"\";\n\n  if (errors.length > 0) {\n    validationResult = \"invalid\";\n  } else if (seenEmails.has(lead.email)) {\n    validationResult = \"duplicate\";\n    duplicateOf = seenEmails.get(lead.email);\n  } else {\n    seenEmails.set(lead.email, lead.lead_id);\n  }\n\n  return {\n    json: {\n      ...lead,\n      validation_result: validationResult,\n      duplicate_of: duplicateOf,\n      validation_errors: errors.join(\"; \"),\n      processed_at: new Date().toISOString(),\n    },\n  };\n});\n\nreturn results;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "20a34ab3-c224-4a7e-90d1-9052091e269d",
+      "name": "Validate & Deduplicate Leads"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_SPREADSHEET_ID",
+          "mode": "id",
+          "cachedResultName": "AI Sales Automation - Leads"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Leads",
+          "mode": "name",
+          "cachedResultName": "Leads"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "lead_id": "={{ $json.lead_id }}",
+            "validation_result": "={{ $json.validation_result }}",
+            "duplicate_of": "={{ $json.duplicate_of }}",
+            "processed_at": "={{ $json.processed_at }}",
+            "validation_errors": "={{ $json.validation_errors }}"
+          },
+          "matchingColumns": [
+            "lead_id"
+          ],
+          "schema": [
+            {
+              "id": "lead_id",
+              "displayName": "lead_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "company_name",
+              "displayName": "company_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "contact_name",
+              "displayName": "contact_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "country",
+              "displayName": "country",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "industry",
+              "displayName": "industry",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "validation_result",
+              "displayName": "validation_result",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "duplicate_of",
+              "displayName": "duplicate_of",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "processed_at",
+              "displayName": "processed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "validation_errors",
+              "displayName": "validation_errors",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        672,
+        0
+      ],
+      "id": "ac8b6059-5a81-479d-afa4-2d47384b2047",
+      "name": "Write Validation Results"
+    }
+  ],
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Validate & Deduplicate Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Deduplicate Leads": {
+      "main": [
+        [
+          {
+            "node": "Write Validation Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "nodeGroups": [],
+  "tags": []
+}

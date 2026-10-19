@@ -1,0 +1,31 @@
+lead_id,company_name,contact_name,email,phone,country,industry,status
+L001,Adler Maschinenbau GmbH,Anna Weber,anna.weber@adler.example,+49301234001,Germany,Manufacturing,new
+L002,Berlin Digital GmbH,Max Fischer,max.fischer@berlindigital.example,+49301234002,Germany,IT,new
+L003,Hanse Logistik GmbH,Lena Hoffmann,lena.hoffmann@hanse.example,+49401234003,Germany,Logistics,new
+L004,Rhein Consulting GmbH,Paul Becker,paul.becker@rhein.example,+492211234004,Germany,Consulting,new
+L005,Bavaria Solar GmbH,Laura Schneider,laura.schneider@bavariasolar.example,+49891234005,Germany,Energy,new
+L006,Nordlicht Media GmbH,Jonas Wagner,jonas.wagner@nordlicht.example,+49401234006,Germany,Marketing,new
+L007,Elbe Retail GmbH,Mia Schulz,mia.schulz@elbe.example,+49351234007,Germany,Retail,new
+L008,Westfalen Technik GmbH,Felix Braun,felix.braun@westfalen.example,+492311234008,Germany,Engineering,new
+L009,Alpen Food GmbH,Emma Richter,emma.richter@alpenfood.example,+49891234009,Germany,Food,new
+L010,Main Finance GmbH,Leon Keller,leon.keller@mainfinance.example,+49691234010,Germany,Finance,new
+L011,Spree Software GmbH,Sophie Neumann,sophie.neumann@spree.example,+49301234011,Germany,IT,new
+L012,Neckar Mobility GmbH,Benjamin Wolf,benjamin.wolf@neckar.example,+497111234012,Germany,Transport,new
+L013,Ostsee Health GmbH,Clara Zimmermann,clara.zimmermann@ostsee.example,+493811234013,Germany,Healthcare,new
+L014,Harz Packaging GmbH,David Kruger,david.kruger@harz.example,+495321234014,Germany,Packaging,new
+L015,Isar Analytics GmbH,Marie Hartmann,marie.hartmann@isar.example,+49891234015,Germany,Analytics,new
+L016,Adler Maschinenbau GmbH,Anna Weber,ANNA.WEBER@ADLER.EXAMPLE,+49301234001,Germany,Manufacturing,new
+L017,Berlin Digital GmbH,Max Fischer, max.fischer@berlindigital.example ,+49301234002,Germany,IT,new
+L018,Unknown Email GmbH,Tim Vogel,tim.vogel-at-unknown.example,+49301234018,Germany,IT,new
+L019,Missing Email GmbH,Nina Roth,,+49301234019,Germany,Consulting,new
+L020,,Jan Meier,jan.meier@missingcompany.example,+49301234020,Germany,Logistics,new
+L021,Missing Contact GmbH,,contact@missingcontact.example,+49301234021,Germany,Services,new
+L022,Missing Country GmbH,Julia Frank,julia.frank@missingcountry.example,+49301234022,,Retail,new
+L023,Optional Phone GmbH,Oliver Busch,oliver.busch@optionalphone.example,,Germany,Manufacturing,new
+L024,Optional Industry GmbH,Amelie Brandt,amelie.brandt@optionalindustry.example,+49301234024,Germany,,new
+L025,Uppercase Email GmbH,Lukas Seidel,LUKAS.SEIDEL@UPPERCASE.EXAMPLE,+49301234025,Germany,Consulting,new
+L026,Trim Spaces GmbH,Greta Sommer, greta.sommer@trimspaces.example ,+49301234026,Germany,IT,new
+L027,Second Duplicate GmbH,Anna Weber,anna.weber@adler.example,+49301234027,Germany,Services,new
+L028,Malformed Email GmbH,Erik Schmitt,erik.schmitt@,+49301234028,Germany,Finance,new
+L029,Missing Phone and Industry GmbH,Hannah Koch,hannah.koch@optionalboth.example,,Germany,,new
+L030,Valid Final GmbH,Noah Peters,noah.peters@validfinal.example,+49301234030,Germany,Logistics,new
