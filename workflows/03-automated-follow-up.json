@@ -1,0 +1,538 @@
+{
+  "name": "03 - Automated Follow-Up",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automated-follow-up",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "7ef314e1-964c-4347-8d8a-a7b02802d07d",
+      "name": "Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst items = $input.all();\n\nreturn items.map((item) => {\n  const body = item.json.body ?? {};\n  const errors = [];\n\n  const callId = String(body.call_id ?? \"\").trim();\n  const leadId = String(body.lead_id ?? \"\").trim();\n  const company = String(body.company ?? \"\").trim();\n  const contactName = String(body.contact_name ?? \"\").trim();\n  const email = String(body.email ?? \"\").trim();\n  const summary = String(body.summary ?? \"\").trim();\n  const nextAction = String(body.next_action ?? \"\").trim();\n\n  const interestLevel = String(body.interest_level ?? \"\").trim();\n  const leadScore = body.lead_score;\n  const followUpRequired = body.follow_up_required;\n\n  if (!callId) errors.push(\"Missing call_id\");\n  if (!leadId) errors.push(\"Missing lead_id\");\n  if (!company) errors.push(\"Missing company\");\n  if (!contactName) errors.push(\"Missing contact_name\");\n\n  if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {\n    errors.push(\"Invalid or missing email\");\n  }\n\n  if (!summary) errors.push(\"Missing summary\");\n  if (!nextAction) errors.push(\"Missing next_action\");\n\n  if (![\"high\", \"medium\", \"low\", \"none\"].includes(interestLevel)) {\n    errors.push(\"Invalid interest_level\");\n  }\n\n  if (!Number.isInteger(leadScore) || leadScore < 0 || leadScore > 100) {\n    errors.push(\"Invalid lead_score\");\n  }\n\n  if (typeof followUpRequired !== \"boolean\") {\n    errors.push(\"Invalid follow_up_required\");\n  }\n\n  if (errors.length > 0) {\n    return {\n      json: {\n        call_id: callId || null,\n        lead_id: leadId || null,\n        validation_status: \"invalid\",\n        errors\n      }\n    };\n  }\n\n  return {\n    json: {\n      call_id: callId,\n      lead_id: leadId,\n      company,\n      contact_name: contactName,\n      email,\n      interest_level: interestLevel,\n      lead_score: leadScore,\n      summary,\n      next_action: nextAction,\n      follow_up_required: followUpRequired,\n      validation_status: \"valid\",\n      received_at: new Date().toISOString()\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "eed764db-604d-40f0-9244-7145b958e843",
+      "name": "Validate Follow-Up Data"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a1a4423b-510a-4491-bb6a-0d0fab2dc2e6",
+              "leftValue": "={{ $json.validation_status }}",
+              "rightValue": "valid",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        0
+      ],
+      "id": "3e1fe67e-9b33-4875-a153-f54355758bef",
+      "name": "Is Follow-Up Data Valid?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "=\n{{ JSON.stringify({\n  success: false,\n  error: \"VALIDATION_ERROR\",\n  message: \"Invalid follow-up data\",\n  call_id: $json.call_id,\n  lead_id: $json.lead_id,\n  details: $json.errors\n}) }}\n",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        672,
+        96
+      ],
+      "id": "8e50911e-8e15-4c36-99d6-b10f5e35b7c0",
+      "name": "Return Validation Error"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "9627e8f2-3077-4791-a361-8eabf0e5380f",
+              "leftValue": "={{ $json.follow_up_required }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        672,
+        -96
+      ],
+      "id": "90f4605e-72f4-4b4d-aa34-63f0f5f17956",
+      "name": "Is Follow-Up Required?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "=\n{{ JSON.stringify({\n  success: true,\n  call_id: $json.call_id,\n  lead_id: $json.lead_id,\n  follow_up_required: false,\n  draft_generated: false,\n  status: \"skipped\",\n  message: \"No follow-up email is required for this call.\"\n}) }}\n",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        896,
+        0
+      ],
+      "id": "2e776c4a-577b-41e2-8551-2ba831abdd4b",
+      "name": "Return Follow-Up Not Required"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3.8-flash",
+          "mode": "list",
+          "cachedResultName": "Gemini 3.8 Flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=\n{{ `You are a professional B2B sales assistant writing follow-up emails in German.\n\nCreate a personalized follow-up email draft based ONLY on the provided sales call analysis.\n\nReturn ONLY a valid JSON object with these fields:\n- subject: string (German email subject)\n- body: string (complete German email body)\n\nWriting requirements:\n- Write in natural, professional German.\n- Keep the email concise (approximately 100-150 words).\n- Address the contact politely using \"Sie\".\n- Refer to the actual discussion and the recommended next action.\n- Include a clear but non-pushy call to action.\n- Do not invent prices, dates, promises, or product features.\n- Do not invent the sender's name or company.\n- End with \"Mit freundlichen Grüßen\" followed by \"[Ihr Name]\".\n- Do not include Markdown formatting or code fences.\n- Do not send the email. Generate a draft only.\n\nCompany: ${$json.company}\nContact: ${$json.contact_name}\nInterest level: ${$json.interest_level}\nLead score: ${$json.lead_score}\n\nCall summary:\n${$json.summary}\n\nRecommended next action:\n${$json.next_action}` }}\n"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        -192
+      ],
+      "id": "99ba6bb1-d4be-4ae7-ad81-4c82aff4828e",
+      "name": "Generate Follow-Up Draft",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst items = $input.all();\n\nreturn items.map((item) => {\n  // Extract the text generated by Gemini.\n  const parts = item.json.content?.parts ?? [];\n\n  const rawText = parts\n    .map((part) => part.text ?? \"\")\n    .join(\"\\n\")\n    .trim();\n\n  if (!rawText) {\n    throw new Error(\"Gemini returned an empty email draft\");\n  }\n\n  // Remove optional Markdown code fences.\n  const cleanedText = rawText\n    .replace(/^```(?:json)?\\s*/i, \"\")\n    .replace(/\\s*```$/, \"\")\n    .trim();\n\n  let draft;\n\n  try {\n    draft = JSON.parse(cleanedText);\n  } catch (error) {\n    throw new Error(\n      `Invalid JSON returned by Gemini: ${error.message}`\n    );\n  }\n\n  if (\n    !draft ||\n    typeof draft !== \"object\" ||\n    Array.isArray(draft)\n  ) {\n    throw new Error(\"Email draft must be a JSON object\");\n  }\n\n  if (\n    typeof draft.subject !== \"string\" ||\n    !draft.subject.trim()\n  ) {\n    throw new Error(\"Missing or invalid email subject\");\n  }\n\n  if (\n    typeof draft.body !== \"string\" ||\n    !draft.body.trim()\n  ) {\n    throw new Error(\"Missing or invalid email body\");\n  }\n\n  // Retrieve the original validated request.\n  const original = $(\"Validate Follow-Up Data\").first().json;\n\n  return {\n    json: {\n      call_id: original.call_id,\n      lead_id: original.lead_id,\n      company: original.company,\n      contact_name: original.contact_name,\n      email: original.email,\n      interest_level: original.interest_level,\n      lead_score: original.lead_score,\n      subject: draft.subject.trim(),\n      body: draft.body.trim(),\n      follow_up_required: true,\n      draft_status: \"draft\",\n      generated_at: new Date().toISOString(),\n      model_provider: \"google_gemini\"\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        -192
+      ],
+      "id": "0a3120be-3cfd-481d-b4d4-66962f6b536c",
+      "name": "Parse & Validate Email Draft",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Configure in n8n"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_SHEET_GID",
+          "mode": "list",
+          "cachedResultName": "Follow_Up_Drafts"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "call_id": "={{ $json.call_id }}",
+            "lead_id": "={{ $json.lead_id }}",
+            "company": "={{ $json.company }}",
+            "contact_name": "={{ $json.contact_name }}",
+            "email": "={{ $json.email }}",
+            "interest_level": "={{ $json.interest_level }}",
+            "lead_score": "={{ $json.lead_score }}",
+            "subject": "={{ $json.subject }}",
+            "body": "={{ $json.body }}",
+            "follow_up_required": "={{ $json.follow_up_required }}",
+            "draft_status": "={{ $json.draft_status }}",
+            "generated_at": "={{ $json.generated_at }}",
+            "model_provider": "={{ $json.model_provider }}"
+          },
+          "matchingColumns": [
+            "call_id"
+          ],
+          "schema": [
+            {
+              "id": "call_id",
+              "displayName": "call_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "lead_id",
+              "displayName": "lead_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "contact_name",
+              "displayName": "contact_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "interest_level",
+              "displayName": "interest_level",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "lead_score",
+              "displayName": "lead_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "subject",
+              "displayName": "subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "body",
+              "displayName": "body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "follow_up_required",
+              "displayName": "follow_up_required",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "draft_status",
+              "displayName": "draft_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "generated_at",
+              "displayName": "generated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "model_provider",
+              "displayName": "model_provider",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1488,
+        -192
+      ],
+      "id": "3f9fc231-1700-464e-84bb-d22e22b10689",
+      "name": "Save Follow-Up Draft",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "=\n{{ JSON.stringify({\n  success: true,\n  call_id: $(\"Parse & Validate Email Draft\").first().json.call_id,\n  lead_id: $(\"Parse & Validate Email Draft\").first().json.lead_id,\n  email: $(\"Parse & Validate Email Draft\").first().json.email,\n  subject: $(\"Parse & Validate Email Draft\").first().json.subject,\n  body: $(\"Parse & Validate Email Draft\").first().json.body,\n  draft_status: \"draft\",\n  saved_to: \"Google Sheets\",\n  message: \"Follow-up email draft generated and saved successfully.\"\n}) }}\n",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1712,
+        -192
+      ],
+      "id": "ac362981-8409-42c5-9794-873aee3a8bfe",
+      "name": "Return Follow-Up Draft"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "=\n{{ JSON.stringify({\n  success: false,\n  error: \"AI_SERVICE_UNAVAILABLE\",\n  message: \"Follow-up email generation could not be completed. Please try again later.\",\n  call_id: $(\"Validate Follow-Up Data\").first().json.call_id,\n  lead_id: $(\"Validate Follow-Up Data\").first().json.lead_id,\n  draft_generated: false,\n  draft_status: \"failed\"\n}) }}\n",
+        "options": {
+          "responseCode": 503
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1312,
+        -48
+      ],
+      "id": "684a8b93-39e9-494c-b1d3-12ed482b4790",
+      "name": "Return AI Service Error"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "=\n{{ JSON.stringify({\n  success: false,\n  error: \"AI_RESPONSE_INVALID\",\n  message: \"AI service returned an invalid or incomplete email draft.\",\n  call_id: $(\"Validate Follow-Up Data\").first().json.call_id,\n  lead_id: $(\"Validate Follow-Up Data\").first().json.lead_id,\n  draft_generated: false,\n  draft_status: \"failed\"\n}) }}\n",
+        "options": {
+          "responseCode": 502
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1536,
+        -48
+      ],
+      "id": "8b7a666b-44dd-4b41-8e92-84c16ae7156e",
+      "name": "Return AI Parsing Error"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "=\n{{ JSON.stringify({\n  success: false,\n  error: \"DRAFT_STORAGE_FAILED\",\n  message: \"Follow-up email draft was generated but could not be saved to Google Sheets.\",\n  call_id: $(\"Parse & Validate Email Draft\").first().json.call_id,\n  lead_id: $(\"Parse & Validate Email Draft\").first().json.lead_id,\n  draft_generated: true,\n  draft_status: \"not_saved\"\n}) }}\n",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1760,
+        -48
+      ],
+      "id": "d1dc19ee-6bb9-46b5-b16b-345888771b58",
+      "name": "Return Sheets Error"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Follow-Up Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Follow-Up Data": {
+      "main": [
+        [
+          {
+            "node": "Is Follow-Up Data Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Follow-Up Data Valid?": {
+      "main": [
+        [
+          {
+            "node": "Is Follow-Up Required?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Follow-Up Required?": {
+      "main": [
+        [
+          {
+            "node": "Generate Follow-Up Draft",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Follow-Up Not Required",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Follow-Up Draft": {
+      "main": [
+        [
+          {
+            "node": "Parse & Validate Email Draft",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return AI Service Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Validate Email Draft": {
+      "main": [
+        [
+          {
+            "node": "Save Follow-Up Draft",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return AI Parsing Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Follow-Up Draft": {
+      "main": [
+        [
+          {
+            "node": "Return Follow-Up Draft",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Sheets Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "nodeGroups": [],
+  "tags": []
+}
