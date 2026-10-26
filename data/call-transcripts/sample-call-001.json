@@ -1,0 +1,9 @@
+
+{
+  "call_id": "CALL-001",
+  "lead_id": "L001",
+  "call_date": "2026-10-26",
+  "language": "de",
+  "duration_seconds": 185,
+  "transcript": "Sales Agent: Guten Tag, spreche ich mit Herrn Müller von der Müller Technik GmbH?\nCustomer: Ja, das bin ich.\nSales Agent: Wir helfen mittelständischen Unternehmen dabei, ihre Vertriebsprozesse durch Automatisierung zu verbessern. Wäre das für Sie interessant?\nCustomer: Grundsätzlich ja. Wir verlieren aktuell viel Zeit mit manueller Dateneingabe und der Nachverfolgung von Kundenanfragen.\nSales Agent: Verstehe. Nutzen Sie bereits ein CRM-System?\nCustomer: Ja, wir verwenden Pipedrive, aber viele Aufgaben erledigen wir noch manuell.\nSales Agent: Wären Sie offen für eine kurze Demo unserer Automatisierungslösung?\nCustomer: Ja, gerne. Schicken Sie mir bitte einige Informationen per E-Mail. Nächste Woche hätten wir Zeit für eine Demo.\nSales Agent: Sehr gerne. Vielen Dank für das Gespräch.\nCustomer: Danke, auf Wiederhören."
+}

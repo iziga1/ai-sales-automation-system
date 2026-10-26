@@ -1,0 +1,448 @@
+{
+  "name": "02 - AI Call Analysis",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-call-analysis",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "9b35a5a7-f0ed-43ac-bc5b-ecbe1c90f39e",
+      "name": "Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst items = $input.all();\n\nreturn items.map((item) => {\n  const body = item.json.body ?? {};\n  const errors = [];\n\n  const callId = String(body.call_id ?? \"\").trim();\n  const leadId = String(body.lead_id ?? \"\").trim();\n  const transcript = String(body.transcript ?? \"\").trim();\n  const language = String(body.language ?? \"de\").trim();\n\n  if (!callId) {\n    errors.push(\"Missing call_id\");\n  }\n\n  if (!leadId) {\n    errors.push(\"Missing lead_id\");\n  }\n\n  if (!transcript) {\n    errors.push(\"Missing transcript\");\n  } else if (transcript.length < 50) {\n    errors.push(\"Transcript is too short\");\n  }\n\n  if (errors.length > 0) {\n  return {\n    json: {\n      call_id: callId || null,\n      lead_id: leadId || null,\n      validation_status: \"invalid\",\n      errors: errors\n    }\n  };\n}\n\n  return {\n    json: {\n      call_id: callId,\n      lead_id: leadId,\n      call_date: body.call_date ?? null,\n      language,\n      duration_seconds: body.duration_seconds ?? null,\n      transcript,\n      validation_status: \"valid\",\n      received_at: new Date().toISOString()\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "33726ec9-2abb-4162-9885-89c09dddbd3d",
+      "name": "Validate Call Data"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3.8-flash",
+          "mode": "list",
+          "cachedResultName": "Gemini 3.8 Flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=\n{{ `You are an AI sales call analyst for a German B2B sales automation system.\n\nAnalyze the transcript and return ONLY a valid JSON object.\n\nRequired fields:\n- call_id: string\n- lead_id: string\n- interest_level: \"high\", \"medium\", \"low\", or \"none\"\n- lead_score: integer from 0 to 100\n- sentiment: \"positive\", \"neutral\", or \"negative\"\n- summary: concise English summary\n- next_action: recommended next sales action in English\n- follow_up_required: boolean\n\nScoring:\n80-100: Strong interest and a concrete next step\n60-79: Interested but no firm commitment\n30-59: Uncertain or limited interest\n0-29: Not interested\n\nDo not invent information.\nDo not include Markdown code fences.\n\nCall ID: ${$json.call_id}\nLead ID: ${$json.lead_id}\nLanguage: ${$json.language}\n\nTranscript:\n${$json.transcript}` }}\n"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        0
+      ],
+      "id": "bd6d094b-b745-4dd6-a233-978f8c3213d5",
+      "name": "Message a model",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst items = $input.all();\n\nreturn items.map((item) => {\n  // Extract the JSON text returned by Gemini\n  const parts = item.json.content?.parts ?? [];\n\n  const rawText = parts\n    .map((part) => part.text ?? \"\")\n    .join(\"\\n\")\n    .trim();\n\n  if (!rawText) {\n    throw new Error(\"Gemini returned an empty response\");\n  }\n\n  // Remove optional Markdown code fences\n  const cleanedText = rawText\n    .replace(/^```(?:json)?\\s*/i, \"\")\n    .replace(/\\s*```$/, \"\")\n    .trim();\n\n  let analysis;\n\n  try {\n    analysis = JSON.parse(cleanedText);\n  } catch (error) {\n    throw new Error(\n      `Invalid JSON returned by Gemini: ${error.message}`\n    );\n  }\n\n  if (\n    !analysis ||\n    typeof analysis !== \"object\" ||\n    Array.isArray(analysis)\n  ) {\n    throw new Error(\"AI response must be a JSON object\");\n  }\n\n  // Required text fields\n  const requiredStrings = [\n    \"call_id\",\n    \"lead_id\",\n    \"interest_level\",\n    \"sentiment\",\n    \"summary\",\n    \"next_action\"\n  ];\n\n  for (const field of requiredStrings) {\n    if (\n      typeof analysis[field] !== \"string\" ||\n      !analysis[field].trim()\n    ) {\n      throw new Error(`Invalid or missing field: ${field}`);\n    }\n  }\n\n  const allowedInterest = [\n    \"high\",\n    \"medium\",\n    \"low\",\n    \"none\"\n  ];\n\n  const allowedSentiment = [\n    \"positive\",\n    \"neutral\",\n    \"negative\"\n  ];\n\n  if (!allowedInterest.includes(analysis.interest_level)) {\n    throw new Error(\"Invalid interest_level\");\n  }\n\n  if (!allowedSentiment.includes(analysis.sentiment)) {\n    throw new Error(\"Invalid sentiment\");\n  }\n\n  if (\n    !Number.isInteger(analysis.lead_score) ||\n    analysis.lead_score < 0 ||\n    analysis.lead_score > 100\n  ) {\n    throw new Error(\"lead_score must be an integer from 0 to 100\");\n  }\n\n  if (typeof analysis.follow_up_required !== \"boolean\") {\n    throw new Error(\"follow_up_required must be a boolean\");\n  }\n\n  // Confirm AI IDs match the validated webhook input\n  const original = $(\"Validate Call Data\").first().json;\n\n  if (\n    analysis.call_id !== original.call_id ||\n    analysis.lead_id !== original.lead_id\n  ) {\n    throw new Error(\"AI response IDs do not match input data\");\n  }\n\n  return {\n    json: {\n      call_id: analysis.call_id,\n      lead_id: analysis.lead_id,\n      interest_level: analysis.interest_level,\n      lead_score: analysis.lead_score,\n      sentiment: analysis.sentiment,\n      summary: analysis.summary.trim(),\n      next_action: analysis.next_action.trim(),\n      follow_up_required: analysis.follow_up_required,\n      analyzed_at: new Date().toISOString(),\n      model_provider: \"google_gemini\",\n      analysis_status: \"completed\"\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "fb10f406-860a-420f-ba6a-c50ff9335f7d",
+      "name": "Parse & Validate AI Response",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Call_Analysis",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "call_id": "={{ $json.call_id }}",
+            "lead_id": "={{ $json.lead_id }}",
+            "interest_level": "={{ $json.interest_level }}",
+            "lead_score": "={{ $json.lead_score }}",
+            "sentiment": "={{ $json.sentiment }}",
+            "summary": "={{ $json.summary }}",
+            "next_action": "={{ $json.next_action }}",
+            "follow_up_required": "={{ $json.follow_up_required }}",
+            "analyzed_at": "={{ $json.analyzed_at }}",
+            "model_provider": "={{ $json.model_provider }}",
+            "analysis_status": "={{ $json.analysis_status }}"
+          },
+          "matchingColumns": [
+            "call_id"
+          ],
+          "schema": [
+            {
+              "id": "call_id",
+              "displayName": "call_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "lead_id",
+              "displayName": "lead_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "interest_level",
+              "displayName": "interest_level",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "lead_score",
+              "displayName": "lead_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sentiment",
+              "displayName": "sentiment",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summary",
+              "displayName": "summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "next_action",
+              "displayName": "next_action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "follow_up_required",
+              "displayName": "follow_up_required",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "analyzed_at",
+              "displayName": "analyzed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "model_provider",
+              "displayName": "model_provider",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "analysis_status",
+              "displayName": "analysis_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1264,
+        0
+      ],
+      "id": "bffdddcd-beb9-4685-b499-99f4b0366481",
+      "name": "Save Call Analysis",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "=\n{{ JSON.stringify($(\"Parse & Validate AI Response\").first().json) }}\n",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1488,
+        0
+      ],
+      "id": "5f076625-50d8-4c0b-827e-51efc3265cb2",
+      "name": "Return AI Analysis"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ea0bbfc4-6c8b-457d-b491-7673be28d71e",
+              "leftValue": "={{ $json.validation_status }}",
+              "rightValue": "valid",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        0
+      ],
+      "id": "31240c08-582b-426b-89cd-d14663aec652",
+      "name": "Is Call Data Valid?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({\n  success: false,\n  error: \"VALIDATION_ERROR\",\n  message: \"Invalid call data\",\n  call_id: $json.call_id,\n  lead_id: $json.lead_id,\n  details: $json.errors\n}) }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        720,
+        144
+      ],
+      "id": "efb2ae96-1a6f-4c28-ab5e-e12d3dcf852b",
+      "name": "Return Validation Error"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "=\n{{ JSON.stringify({\n  success: false,\n  error: \"AI_SERVICE_UNAVAILABLE\",\n  message: \"AI analysis could not be completed. Please try again later.\",\n  call_id: $(\"Validate Call Data\").first().json.call_id,\n  lead_id: $(\"Validate Call Data\").first().json.lead_id,\n  analysis_status: \"failed\"\n}) }}\n",
+        "options": {
+          "responseCode": 503
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1088,
+        144
+      ],
+      "id": "0b90616a-9b2c-495c-a637-2b313272b502",
+      "name": "Return AI Service Error"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "=\n{{ JSON.stringify({\n  success: false,\n  error: \"STORAGE_ERROR\",\n  message: \"AI analysis completed, but the result could not be saved.\",\n  call_id: $(\"Validate Call Data\").first().json.call_id,\n  lead_id: $(\"Validate Call Data\").first().json.lead_id,\n  analysis_status: \"save_failed\"\n}) }}\n",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1536,
+        144
+      ],
+      "id": "a2a89342-d937-46d7-b166-ab1d3c32aab0",
+      "name": "Return Storage Error"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "=\n{{ JSON.stringify({\n  success: false,\n  error: \"AI_RESPONSE_INVALID\",\n  message: \"AI service returned an invalid or incomplete analysis.\",\n  call_id: $(\"Validate Call Data\").first().json.call_id,\n  lead_id: $(\"Validate Call Data\").first().json.lead_id,\n  analysis_status: \"failed\"\n}) }}\n",
+        "options": {
+          "responseCode": 502
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1312,
+        144
+      ],
+      "id": "ba68b9b2-c7dc-491e-951d-623fb4bd0bd0",
+      "name": "Return AI Parsing Error"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Call Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Call Data": {
+      "main": [
+        [
+          {
+            "node": "Is Call Data Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Parse & Validate AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return AI Service Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Validate AI Response": {
+      "main": [
+        [
+          {
+            "node": "Save Call Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return AI Parsing Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Call Analysis": {
+      "main": [
+        [
+          {
+            "node": "Return AI Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Storage Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Call Data Valid?": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "nodeGroups": [],
+  "tags": []
+}
