@@ -5,6 +5,16 @@
 
 > **Status:** Five core modules implemented and tested with synthetic data | Portfolio Project
 
+
+## Watch the Demo
+
+🎬 **[Watch the AI Sales Automation System Demo](https://github.com/iziga1/ai-sales-automation-system/releases/tag/v1.0.0-demo)**
+
+The demo showcases AI-powered sales call analysis, personalized follow-up email drafts, and automated sales dashboard updates using synthetic B2B data.
+
+**Tech stack:** n8n · Google Gemini · Google Sheets · JavaScript · PowerShell
+
+
 ## Overview
 
 AI Sales Automation System is a modular automation project designed to demonstrate how AI and workflow automation can streamline B2B sales operations.
