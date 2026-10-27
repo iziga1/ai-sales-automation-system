@@ -13,6 +13,36 @@ The system uses synthetic German-market sales data to demonstrate lead validatio
 
 The project focuses on practical workflow orchestration, structured AI outputs, data validation, API integrations, and operational reliability.
 
+
+## Project Screenshots
+
+### Sales Performance Dashboard
+
+![Sales Performance Dashboard](screenshots/04-dashboard-preview.png)
+
+### Automation Workflows
+
+**01 — Lead Validation**
+
+![Lead Validation Workflow](screenshots/01-lead-validation.png)
+
+**02 — AI Call Analysis**
+
+![AI Call Analysis Workflow](screenshots/02-ai-call-analysis.png)
+
+**03 — Automated Follow-Up**
+
+![Automated Follow-Up Workflow](screenshots/03-automated-follow-up.png)
+
+**04 — Sales Automation Dashboard**
+
+![Sales Automation Dashboard Workflow](screenshots/04-sales-automation-dashboard.png)
+
+**05 — Error Handling & Monitoring**
+
+![Error Handling and Monitoring Workflow](screenshots/05-error-handling-monitoring.png)
+
+
 ## Business Problem
 
 B2B sales teams spend significant time on repetitive administrative tasks:
