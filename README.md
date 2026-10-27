@@ -300,7 +300,7 @@ Testing is based on demonstration scenarios and does not represent production-sc
 
 This is an independent portfolio project demonstrating AI-powered workflow automation, data processing, and system integration skills.
 
-It is not a production CRM platform or an official Advista product.
+It is not a production CRM platform.
 
 ## License
 
